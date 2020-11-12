@@ -62,9 +62,9 @@ int main(int argc, char *argv[])
 	}
 
 	ti = str_cli(fp, sockfd, (struct sockaddr *)&ser_addr_in, sizeof(struct sockaddr_in), &len);
-	rt = (len / (float)ti); //average transmission rate
+	rt = (len / (float)ti); //average transmission rate(KB/s)
 	th = 8.0 * rt / 1000.0; //throughput
-	printf("Time(ms): %.3f\nData Sent(bytes): %d\nData Rate(Kbytes/s): %f\nThroughput(Mbps): %f\n", ti, (int)len, rt, th);
+	printf("Time(ms): %.3f\nData Sent(bytes): %d\nData Rate(KB/s): %f\nThroughput(Mbps): %f\n", ti, (int)len, rt, th);
 
 	close(sockfd);
 	fclose(fp);
@@ -92,18 +92,18 @@ float str_cli(FILE *fp, int sockfd, struct sockaddr *addr, int addrlen, long *le
 	fseek(fp, 0, SEEK_END);
 	file_size = ftell(fp);
 	rewind(fp);
-	printf("File Length(bytes): %d\n", (int)file_size);
 	printf("Packet Length(bytes): %d\n", DATALEN);
 
 	buffer = (char *)malloc(file_size+1);
-	if(buffer == NULL) exit(1);
+    if(buffer == NULL) {exit(1);}
 	fread(buffer, 1, file_size, fp);
-	buffer[file_size] = '\0';
+	buffer[file_size] = '\0'; //end of file
 
-	gettimeofday(&send_t, NULL);
+	gettimeofday(&send_t, NULL); //get time of sending start
+    //start trans
 	while (buf_index <= file_size) {
-		printf("#%ld\n", buf_index);
-		if ((file_size+1-buf_index) <= DATALEN) {
+		printf("-----send a packet-----");
+		if ((file_size + 1 - buf_index) <= DATALEN) { //get sent data length
 			send_len = file_size + 1 - buf_index;
 		} else {
 			send_len = DATALEN;
@@ -121,18 +121,18 @@ float str_cli(FILE *fp, int sockfd, struct sockaddr *addr, int addrlen, long *le
 			printf("receive ack error");
 			exit(1);
 		}
-		if (ack.num == 1 && ack.len == 0) {
+		if (ack.len == 0 && ack.num == 1) {
 			buf_index += send_len;
-			printf("receive ack\n");
+			printf("receive ACK\n");
 		} else if (ack.len == 0 && ack.num == -1) { //NACK
-			printf("receive nack");
+			printf("receive NACK");
 		} else {
 			buf_index += send_len;
 		}
 	}
 
-	gettimeofday(&recv_t, NULL);
-	*len = buf_index;
+    *len = buf_index;
+	gettimeofday(&recv_t, NULL); //get time of trans end
 	tv_sub(&recv_t, &send_t);
 	time_inv += (recv_t.tv_sec) * 1000.0 + (recv_t.tv_usec) / 1000.0;
 

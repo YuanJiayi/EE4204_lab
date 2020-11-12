@@ -13,8 +13,9 @@ int main(int argc, char *argv[])
 
 	if (argc != 2) {
 		printf("Parameters error\n");
+        exit(0);
 	}
-	sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+	sockfd = socket(AF_INET, SOCK_DGRAM, 0); //create socket
 	if (sockfd < 0) {
 		printf("error in socket!");
 		exit(1);
@@ -49,45 +50,43 @@ void str_ser(int sockfd, struct sockaddr *addr, int addrlen)
 	while (!end) {
 		random_num = (float)rand() / (RAND_MAX);
 		printf("random number: %f\n", random_num);
-		if (random_num < ERROR_P) {
-			printf("damaged packet.\n");
-			ack.len = 0;
-			ack.num = -1;
+		if (ERROR_P > random_num) { //simulated error(damaged packet)
+            ack.len = 0;
+            ack.num = -1;
+            printf("damaged packet.\n");
 			if ((n = sendto(sockfd, &ack, 2, 0, addr, addrlen)) == -1) {
 				printf("send error\n");
 				exit(1);
 			}
 			printf("send NACK\n");
-		} else { //complete packet
+		} else { //good packet
 			if ((n = recvfrom(sockfd, &recv, DATALEN, 0, addr, (socklen_t *)&addrlen)) == -1) {
 				printf("error when receiving\n");
 				exit(1);
 			}
 			printf("receive a packet\n");
-			if (recv[n - 1] == '\0') { //file ends
+			if (recv[n - 1] == '\0') { //end of file
 				n--;
 				end = 1;
 			}
 			memcpy((buffer + lseek), recv, n);
+            lseek += n;
+            ack.len = 0;
+            ack.num = 1;
 			printf("Received Data(bytes): %d\n", n);
-			lseek += n;
-
-			ack.len = 0;
-			ack.num = 1;
 			if ((n = sendto(sockfd, &ack, 2, 0, addr, addrlen)) == -1) {
 				printf("send ack error\n");
 				exit(1);
 			}
 			printf("send ACK\n");
 		}
-		printf("end: %d\n", end);
+        if (end == 1) {printf("end of transmisson.\n");}
 	}
 
-	if ((fp = fopen("myUDPReceive.txt", "wt")) == NULL) {
+	if ((fp = fopen("myReceive.txt", "wt")) == NULL) {
 		printf("file does not exist.\n");
 		exit(0);
 	}
-
 	fwrite(buffer, 1, lseek, fp);
 	fclose(fp);
 }
